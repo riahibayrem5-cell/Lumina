@@ -47,16 +47,15 @@ export const useReadingStore = create<ReadingState>()(
       setProgress: (bookId, patch) =>
         set((state) => {
           const prev = state.progress[bookId];
-          const next: BookProgress = {
+          const base: BookProgress = prev ?? {
             bookId,
             chapter: 0,
             scrollRatio: 0,
             status: "reading",
-            startedAt: prev?.startedAt ?? Date.now(),
+            startedAt: Date.now(),
             updatedAt: Date.now(),
-            ...prev,
-            ...patch,
           };
+          const next: BookProgress = { ...base, ...patch, bookId, updatedAt: Date.now() };
           return { progress: { ...state.progress, [bookId]: next } };
         }),
 
