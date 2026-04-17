@@ -232,11 +232,12 @@ export const askTheBook = createServerFn({ method: "POST" })
     if (!book) return { reply: "", error: "Book not found" };
     const ch = await getChapterText({ data: { slug: data.slug, chapter: data.chapter } });
 
-    const toneInstr = {
+    const toneMap: Record<"scholarly" | "casual" | "socratic", string> = {
       scholarly: "Respond with the precision of a literary critic. Cite specific lines when relevant.",
       casual: "Respond like a thoughtful friend who loves this book. Warm, plainspoken.",
       socratic: "Respond by asking the reader sharper questions back. Help them discover.",
-    }[data.tone];
+    };
+    const toneInstr = toneMap[data.tone];
 
     const groundingMsg = ch.error
       ? `(Full text unavailable. Answer from general knowledge of "${book.title}" by ${book.author}.)`
@@ -354,12 +355,13 @@ export const generateChapterImage = createServerFn({ method: "POST" })
       ? `general atmosphere of "${book.title}" by ${book.author}`
       : `a key scene from "${ch.title}" of "${book.title}" by ${book.author}`;
 
-    const styleDesc = {
+    const styleMap: Record<"vintage-oil" | "cinematic-noir" | "watercolor" | "woodcut", string> = {
       "vintage-oil": "vintage oil painting, warm umber palette, Caravaggio-like chiaroscuro, weathered canvas texture",
       "cinematic-noir": "cinematic noir illustration, deep shadows, single warm light source, melancholic atmosphere",
       watercolor: "delicate watercolor etching, ivory paper, sepia and dusty rose washes, fine line work",
       woodcut: "intricate woodcut print, high contrast black and cream, art-nouveau border ornaments",
-    }[data.style];
+    };
+    const styleDesc = styleMap[data.style];
 
     const prompt = `An evocative ${styleDesc} depicting ${sceneHint}. No text or letters in the image. Atmospheric, literary, contemplative. Single composition.`;
 

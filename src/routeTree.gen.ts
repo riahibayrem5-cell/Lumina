@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BookSlugRouteImport } from './routes/book.$slug'
 import { Route as ReadBookIdChapterRouteImport } from './routes/read.$bookId.$chapter'
 
 const LibraryRoute = LibraryRouteImport.update({
@@ -18,9 +20,19 @@ const LibraryRoute = LibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookSlugRoute = BookSlugRouteImport.update({
+  id: '/book/$slug',
+  path: '/book/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReadBookIdChapterRoute = ReadBookIdChapterRouteImport.update({
@@ -31,31 +43,50 @@ const ReadBookIdChapterRoute = ReadBookIdChapterRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/library': typeof LibraryRoute
+  '/book/$slug': typeof BookSlugRoute
   '/read/$bookId/$chapter': typeof ReadBookIdChapterRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/library': typeof LibraryRoute
+  '/book/$slug': typeof BookSlugRoute
   '/read/$bookId/$chapter': typeof ReadBookIdChapterRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/library': typeof LibraryRoute
+  '/book/$slug': typeof BookSlugRoute
   '/read/$bookId/$chapter': typeof ReadBookIdChapterRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/library' | '/read/$bookId/$chapter'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/library'
+    | '/book/$slug'
+    | '/read/$bookId/$chapter'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/library' | '/read/$bookId/$chapter'
-  id: '__root__' | '/' | '/library' | '/read/$bookId/$chapter'
+  to: '/' | '/auth' | '/library' | '/book/$slug' | '/read/$bookId/$chapter'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/library'
+    | '/book/$slug'
+    | '/read/$bookId/$chapter'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
   LibraryRoute: typeof LibraryRoute
+  BookSlugRoute: typeof BookSlugRoute
   ReadBookIdChapterRoute: typeof ReadBookIdChapterRoute
 }
 
@@ -68,11 +99,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/book/$slug': {
+      id: '/book/$slug'
+      path: '/book/$slug'
+      fullPath: '/book/$slug'
+      preLoaderRoute: typeof BookSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/read/$bookId/$chapter': {
@@ -87,18 +132,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
   LibraryRoute: LibraryRoute,
+  BookSlugRoute: BookSlugRoute,
   ReadBookIdChapterRoute: ReadBookIdChapterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
