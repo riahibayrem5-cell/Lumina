@@ -36,7 +36,7 @@ export function ChatTab({ bookId, chapter }: { bookId: string; chapter: number }
     setLoading(true);
     setError(null);
     try {
-      const res = await askTheBook({ data: { bookId, chapter, tone, messages: next } });
+      const res = await askTheBook({ data: { slug: bookId, chapter, tone, messages: next } });
       if (res.error) {
         setError(res.error);
         setMessages(messages); // rollback

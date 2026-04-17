@@ -15,7 +15,7 @@ export function SummaryTab({ bookId, chapter }: { bookId: string; chapter: numbe
     setError(null);
     setContent("");
     try {
-      const res = await generateChapterSummary({ data: { bookId, chapter } });
+      const res = await generateChapterSummary({ data: { slug: bookId, chapter } });
       if (res.error) setError(res.error);
       else setContent(res.content);
     } catch (e) {
