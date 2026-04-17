@@ -49,7 +49,7 @@ export const Route = createFileRoute("/read/$bookId/$chapter")({
       ],
     };
   },
-  component: ReaderPage,
+  component: ReaderRoute,
   notFoundComponent: () => (
     <div className="grid min-h-screen place-items-center">
       <div className="text-center">
@@ -61,6 +61,14 @@ export const Route = createFileRoute("/read/$bookId/$chapter")({
     </div>
   ),
 });
+
+function ReaderRoute() {
+  return (
+    <AuthGate>
+      <ReaderPage />
+    </AuthGate>
+  );
+}
 
 function ReaderPage() {
   const params = Route.useParams();
