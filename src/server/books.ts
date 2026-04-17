@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth, sendSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { CATALOG } from "@/lib/catalog";
 
 export interface BookRecord {
@@ -141,6 +142,7 @@ export const searchBooks = createServerFn({ method: "POST" })
 // Idempotently resolves a book by slug. If new, looks up Gutenberg + Open Library
 // metadata and inserts a row into public.books, then returns it.
 export const getOrCreateBook = createServerFn({ method: "POST" })
+  .middleware([sendSupabaseAuth, requireSupabaseAuth])
   .inputValidator(
     z.object({
       slug: z.string().min(1).max(120),
@@ -153,8 +155,12 @@ export const getOrCreateBook = createServerFn({ method: "POST" })
       gutenberg_id: z.string().max(20).nullable().optional(),
     }),
   )
-  .handler(async ({ data }) => {
-    const existing = await supabaseAdmin
+  .handler(async ({ data, context }) => {
+    // Use the authenticated user's client so RLS allows the books INSERT
+    // (the policy requires role = 'authenticated').
+    const db = context.supabase;
+
+    const existing = await db
       .from("books")
       .select("*")
       .eq("slug", data.slug)
@@ -186,7 +192,6 @@ export const getOrCreateBook = createServerFn({ method: "POST" })
     if (!gutenbergId) {
       const gut = await searchGutenberg(`${title} ${author}`);
       if (gut) {
-        // require author to roughly match
         if (gut.author.toLowerCase().includes(author.split(" ").slice(-1)[0].toLowerCase())) {
           gutenbergId = String(gut.id);
         }
@@ -195,7 +200,7 @@ export const getOrCreateBook = createServerFn({ method: "POST" })
 
     const source: BookRecord["source"] = gutenbergId ? "gutenberg" : "metadata_only";
 
-    const inserted = await supabaseAdmin
+    const inserted = await db
       .from("books")
       .insert({
         slug: data.slug,
@@ -214,7 +219,7 @@ export const getOrCreateBook = createServerFn({ method: "POST" })
 
     if (inserted.error) {
       // Race: another request created it
-      const retry = await supabaseAdmin.from("books").select("*").eq("slug", data.slug).maybeSingle();
+      const retry = await db.from("books").select("*").eq("slug", data.slug).maybeSingle();
       if (retry.data) return { book: retry.data as unknown as BookRecord, error: null };
       return { book: null, error: inserted.error.message };
     }

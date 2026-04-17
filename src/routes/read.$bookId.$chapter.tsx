@@ -29,6 +29,9 @@ import { HighlightTooltip } from "@/components/reader/highlight-tooltip";
 import { useReadingStore } from "@/store/reading";
 import { getBook } from "@/lib/catalog";
 import { getChapterText, getBookChapters } from "@/server/gutenberg";
+import { AuthGate } from "@/components/auth-gate";
+import { useAuth } from "@/lib/auth-context";
+import { upsertProgress } from "@/server/library";
 
 export const Route = createFileRoute("/read/$bookId/$chapter")({
   head: ({ params }) => {
@@ -46,7 +49,7 @@ export const Route = createFileRoute("/read/$bookId/$chapter")({
       ],
     };
   },
-  component: ReaderPage,
+  component: ReaderRoute,
   notFoundComponent: () => (
     <div className="grid min-h-screen place-items-center">
       <div className="text-center">
@@ -58,6 +61,14 @@ export const Route = createFileRoute("/read/$bookId/$chapter")({
     </div>
   ),
 });
+
+function ReaderRoute() {
+  return (
+    <AuthGate>
+      <ReaderPage />
+    </AuthGate>
+  );
+}
 
 function ReaderPage() {
   const params = Route.useParams();
@@ -77,6 +88,7 @@ function ReaderPage() {
   const setSettings = useReadingStore((s) => s.setSettings);
   const setProgress = useReadingStore((s) => s.setProgress);
   const progress = useReadingStore((s) => s.progress[bookId]);
+  const { session } = useAuth();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [highlight, setHighlight] = useState<{
@@ -144,9 +156,15 @@ function ReaderPage() {
         totalChapters,
         status: "reading",
       });
+      // Push to DB if signed in (best-effort, fire-and-forget)
+      if (session) {
+        upsertProgress({
+          data: { slug: bookId, chapter, scrollRatio: ratio, status: "reading" },
+        }).catch(() => {});
+      }
     }, 5000);
     return () => clearInterval(interval);
-  }, [text, bookId, chapter, totalChapters, setProgress]);
+  }, [text, bookId, chapter, totalChapters, setProgress, session]);
 
   // Sentence selection handler
   const onMouseUp = useCallback(() => {

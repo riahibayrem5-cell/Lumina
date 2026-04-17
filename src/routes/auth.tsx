@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: typeof search.redirect === "string" ? search.redirect : "/",
+  }),
   head: () => ({
     meta: [
       { title: "Sign in — Lumina Books" },
@@ -28,14 +31,16 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const { session, loading: authLoading } = useAuth();
 
-  // If already signed in, bounce home
+  // After sign-in (or if already signed in), bounce back to the requested URL
   useEffect(() => {
     if (!authLoading && session) {
-      navigate({ to: "/" });
+      const target = search.redirect && search.redirect.startsWith("/") ? search.redirect : "/";
+      window.location.assign(target);
     }
-  }, [session, authLoading, navigate]);
+  }, [session, authLoading, search.redirect]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +62,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back.");
-        navigate({ to: "/" });
+        // session effect will redirect to search.redirect
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
@@ -80,8 +85,7 @@ function AuthPage() {
         return;
       }
       if (result.redirected) return;
-      // Tokens were set directly
-      navigate({ to: "/" });
+      // Tokens were set directly — session effect will handle redirect.
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
       setOauthLoading(false);

@@ -12,6 +12,7 @@ import {
 import { CATALOG } from "@/lib/catalog";
 import { Search, BookOpen, Loader2, Sparkles } from "lucide-react";
 import { searchBooks, getOrCreateBook, type SearchResult } from "@/server/books";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 export function SearchCommand() {
@@ -22,6 +23,7 @@ export function SearchCommand() {
   const [searching, setSearching] = useState(false);
   const [resolving, setResolving] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { session } = useAuth();
 
   // Cmd+K binding
   useEffect(() => {
@@ -73,6 +75,16 @@ export function SearchCommand() {
 
   const openResult = async (r: SearchResult) => {
     if (resolving) return;
+    if (!session) {
+      // Send the user to /auth and bring them back to the search target after sign-in
+      const target =
+        r.source === "gutenberg" || r.source === "curated"
+          ? `/read/${r.slug}/0`
+          : `/book/${r.slug}`;
+      setOpen(false);
+      navigate({ to: "/auth", search: { redirect: target } });
+      return;
+    }
     setResolving(r.slug);
     try {
       const res = await getOrCreateBook({
@@ -91,7 +103,6 @@ export function SearchCommand() {
         return;
       }
       setOpen(false);
-      // If we have full text, jump straight into the reader; else go to detail page
       if (res.book.source === "gutenberg" && res.book.gutenberg_id) {
         navigate({
           to: "/read/$bookId/$chapter",
