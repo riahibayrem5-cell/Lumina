@@ -93,9 +93,9 @@ function LibraryPage() {
           <EmptyState />
         ) : (
           <div className="space-y-16">
-            {reading.length > 0 && <Shelf title="Continue Reading" entries={reading} onStatus={setStatus} />}
-            {toRead.length > 0 && <Shelf title="To Read" entries={toRead} onStatus={setStatus} />}
-            {completed.length > 0 && <Shelf title="Completed" entries={completed} onStatus={setStatus} />}
+            {reading.length > 0 && <Shelf title="Continue Reading" entries={reading} onStatus={handleStatus} />}
+            {toRead.length > 0 && <Shelf title="To Read" entries={toRead} onStatus={handleStatus} />}
+            {completed.length > 0 && <Shelf title="Completed" entries={completed} onStatus={handleStatus} />}
           </div>
         )}
       </div>
