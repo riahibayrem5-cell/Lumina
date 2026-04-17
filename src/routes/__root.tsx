@@ -41,6 +41,8 @@ export const Route = createRootRoute({
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Lovable App" },
       { name: "twitter:description", content: "Literary Companion AI enhances reading with AI-powered summaries, visuals, and interactive chat." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/26201d38-4234-491c-8cf4-b508ef358182/id-preview-78d0825d--01c811f0-cedc-451b-985e-a8d61350983e.lovable.app-1776432388748.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/26201d38-4234-491c-8cf4-b508ef358182/id-preview-78d0825d--01c811f0-cedc-451b-985e-a8d61350983e.lovable.app-1776432388748.png" },
     ],
     links: [
       {
