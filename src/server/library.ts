@@ -1,14 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth, sendSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const STATUS = z.enum(["reading", "completed", "to-read", "paused"]);
 
+// === LIBRARY (progress) ===
 export const getMyLibrary = createServerFn({ method: "GET" })
   .middleware([sendSupabaseAuth, requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const r = await supabaseAdmin
+    const r = await context.supabase
       .from("user_library")
       .select("*, book:books(*)")
       .eq("user_id", context.userId)
@@ -21,19 +21,27 @@ export const upsertProgress = createServerFn({ method: "POST" })
   .middleware([sendSupabaseAuth, requireSupabaseAuth])
   .inputValidator(
     z.object({
-      bookId: z.string().uuid(),
+      slug: z.string().min(1).max(120),
       chapter: z.number().int().min(0).max(2000),
       scrollRatio: z.number().min(0).max(1),
       status: STATUS.optional(),
     }),
   )
   .handler(async ({ data, context }) => {
-    const r = await supabaseAdmin
+    // Resolve book id from slug (RLS allows public read on books)
+    const book = await context.supabase
+      .from("books")
+      .select("id")
+      .eq("slug", data.slug)
+      .maybeSingle();
+    if (book.error || !book.data) return { ok: false, error: "Book not found" };
+
+    const r = await context.supabase
       .from("user_library")
       .upsert(
         {
           user_id: context.userId,
-          book_id: data.bookId,
+          book_id: book.data.id,
           current_chapter: data.chapter,
           scroll_ratio: data.scrollRatio,
           status: data.status ?? "reading",
@@ -48,12 +56,19 @@ export const upsertProgress = createServerFn({ method: "POST" })
 
 export const setBookStatus = createServerFn({ method: "POST" })
   .middleware([sendSupabaseAuth, requireSupabaseAuth])
-  .inputValidator(z.object({ bookId: z.string().uuid(), status: STATUS }))
+  .inputValidator(z.object({ slug: z.string().min(1).max(120), status: STATUS }))
   .handler(async ({ data, context }) => {
-    const r = await supabaseAdmin
+    const book = await context.supabase
+      .from("books")
+      .select("id")
+      .eq("slug", data.slug)
+      .maybeSingle();
+    if (book.error || !book.data) return { ok: false, error: "Book not found" };
+
+    const r = await context.supabase
       .from("user_library")
       .upsert(
-        { user_id: context.userId, book_id: data.bookId, status: data.status },
+        { user_id: context.userId, book_id: book.data.id, status: data.status },
         { onConflict: "user_id,book_id" },
       );
     if (r.error) return { ok: false, error: r.error.message };
@@ -62,13 +77,19 @@ export const setBookStatus = createServerFn({ method: "POST" })
 
 export const removeFromLibrary = createServerFn({ method: "POST" })
   .middleware([sendSupabaseAuth, requireSupabaseAuth])
-  .inputValidator(z.object({ bookId: z.string().uuid() }))
+  .inputValidator(z.object({ slug: z.string().min(1).max(120) }))
   .handler(async ({ data, context }) => {
-    await supabaseAdmin
+    const book = await context.supabase
+      .from("books")
+      .select("id")
+      .eq("slug", data.slug)
+      .maybeSingle();
+    if (!book.data) return { ok: true };
+    await context.supabase
       .from("user_library")
       .delete()
       .eq("user_id", context.userId)
-      .eq("book_id", data.bookId);
+      .eq("book_id", book.data.id);
     return { ok: true };
   });
 
@@ -77,18 +98,25 @@ export const addHighlight = createServerFn({ method: "POST" })
   .middleware([sendSupabaseAuth, requireSupabaseAuth])
   .inputValidator(
     z.object({
-      bookId: z.string().uuid(),
+      slug: z.string().min(1).max(120),
       chapter: z.number().int().min(0).max(2000),
       text: z.string().min(2).max(2000),
       note: z.string().max(2000).optional(),
     }),
   )
   .handler(async ({ data, context }) => {
-    const r = await supabaseAdmin
+    const book = await context.supabase
+      .from("books")
+      .select("id")
+      .eq("slug", data.slug)
+      .maybeSingle();
+    if (book.error || !book.data) return { highlight: null, error: "Book not found" };
+
+    const r = await context.supabase
       .from("highlights")
       .insert({
         user_id: context.userId,
-        book_id: data.bookId,
+        book_id: book.data.id,
         chapter: data.chapter,
         text: data.text,
         note: data.note ?? null,
@@ -101,15 +129,22 @@ export const addHighlight = createServerFn({ method: "POST" })
 
 export const listHighlights = createServerFn({ method: "GET" })
   .middleware([sendSupabaseAuth, requireSupabaseAuth])
-  .inputValidator(z.object({ bookId: z.string().uuid().optional() }))
+  .inputValidator(z.object({ slug: z.string().min(1).max(120).optional() }))
   .handler(async ({ data, context }) => {
-    let q = supabaseAdmin
+    let q = context.supabase
       .from("highlights")
       .select("*, book:books(slug,title,author)")
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(500);
-    if (data.bookId) q = q.eq("book_id", data.bookId);
+    if (data.slug) {
+      const b = await context.supabase
+        .from("books")
+        .select("id")
+        .eq("slug", data.slug)
+        .maybeSingle();
+      if (b.data) q = q.eq("book_id", b.data.id);
+    }
     const r = await q;
     if (r.error) return { highlights: [], error: r.error.message };
     return { highlights: r.data ?? [], error: null };
@@ -119,6 +154,10 @@ export const removeHighlight = createServerFn({ method: "POST" })
   .middleware([sendSupabaseAuth, requireSupabaseAuth])
   .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data, context }) => {
-    await supabaseAdmin.from("highlights").delete().eq("id", data.id).eq("user_id", context.userId);
+    await context.supabase
+      .from("highlights")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
     return { ok: true };
   });
