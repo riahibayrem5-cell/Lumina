@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { SiteHeader } from "@/components/site-header";
 import { BookCard } from "@/components/book-card";
@@ -7,6 +8,9 @@ import { useReadingStore } from "@/store/reading";
 import { CATALOG, getBook } from "@/lib/catalog";
 import { Button } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
+import { AuthGate } from "@/components/auth-gate";
+import { useAuth } from "@/lib/auth-context";
+import { getMyLibrary, setBookStatus as setBookStatusFn } from "@/server/library";
 
 export const Route = createFileRoute("/library")({
   head: () => ({
@@ -17,12 +21,51 @@ export const Route = createFileRoute("/library")({
       { property: "og:description", content: "Your reading progress, highlights, and saved volumes." },
     ],
   }),
-  component: LibraryPage,
+  component: LibraryRoute,
 });
 
+function LibraryRoute() {
+  return (
+    <AuthGate>
+      <LibraryPage />
+    </AuthGate>
+  );
+}
+
 function LibraryPage() {
+  const { session } = useAuth();
   const progress = useReadingStore((s) => s.progress);
   const setStatus = useReadingStore((s) => s.setStatus);
+  const setProgress = useReadingStore((s) => s.setProgress);
+
+  // Hydrate local store from the DB on login
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    getMyLibrary().then((res) => {
+      if (cancelled || res.error || !res.entries) return;
+      for (const e of res.entries) {
+        const slug = (e as { book?: { slug?: string } }).book?.slug;
+        if (!slug) continue;
+        setProgress(slug, {
+          chapter: e.current_chapter ?? 0,
+          scrollRatio: e.scroll_ratio ?? 0,
+          status: (e.status as "reading" | "completed" | "to-read" | "paused") ?? "reading",
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, setProgress]);
+
+  // Wrap setStatus to also sync to DB
+  const handleStatus = (slug: string, status: "reading" | "completed" | "to-read" | "paused") => {
+    setStatus(slug, status);
+    if (session) {
+      setBookStatusFn({ data: { slug, status } }).catch(() => {});
+    }
+  };
 
   const entries = Object.values(progress);
   const reading = entries.filter((e) => e.status === "reading");
