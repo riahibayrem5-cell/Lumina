@@ -88,6 +88,7 @@ function ReaderPage() {
   const setSettings = useReadingStore((s) => s.setSettings);
   const setProgress = useReadingStore((s) => s.setProgress);
   const progress = useReadingStore((s) => s.progress[bookId]);
+  const { session } = useAuth();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [highlight, setHighlight] = useState<{
