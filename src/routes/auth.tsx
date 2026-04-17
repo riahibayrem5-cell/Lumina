@@ -31,14 +31,16 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const { session, loading: authLoading } = useAuth();
 
-  // If already signed in, bounce home
+  // After sign-in (or if already signed in), bounce back to the requested URL
   useEffect(() => {
     if (!authLoading && session) {
-      navigate({ to: "/" });
+      const target = search.redirect && search.redirect.startsWith("/") ? search.redirect : "/";
+      window.location.assign(target);
     }
-  }, [session, authLoading, navigate]);
+  }, [session, authLoading, search.redirect]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
