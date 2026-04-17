@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Loader2, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,9 +11,14 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    redirect: typeof search.redirect === "string" ? search.redirect : "/",
-  }),
+  validateSearch: (search: Record<string, unknown>) => {
+    const raw = typeof search.redirect === "string" ? search.redirect : "/";
+    // Only accept same-origin paths and refuse anything pointing back at /auth
+    // to break any chance of a redirect loop.
+    const safe =
+      raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/auth") ? raw : "/";
+    return { redirect: safe };
+  },
   head: () => ({
     meta: [
       { title: "Sign in — Lumina Books" },
@@ -33,13 +38,18 @@ function AuthPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const { session, loading: authLoading } = useAuth();
+  const redirectedRef = useRef(false);
 
-  // After sign-in (or if already signed in), bounce back to the requested URL
+  // After sign-in (or if already signed in), bounce back to the requested URL.
+  // Guarded by a ref so a single render can never trigger more than one redirect.
   useEffect(() => {
-    if (!authLoading && session) {
-      const target = search.redirect && search.redirect.startsWith("/") ? search.redirect : "/";
-      window.location.assign(target);
-    }
+    if (authLoading || !session || redirectedRef.current) return;
+    redirectedRef.current = true;
+    const target =
+      search.redirect && search.redirect.startsWith("/") && !search.redirect.startsWith("/auth")
+        ? search.redirect
+        : "/";
+    window.location.assign(target);
   }, [session, authLoading, search.redirect]);
 
   const submit = async (e: React.FormEvent) => {
