@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getChapterText } from "./gutenberg";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSupabaseAuth, sendSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sendSupabaseAuth } from "@/integrations/supabase/auth-helpers";
 
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const TEXT_MODEL = "google/gemini-3-flash-preview";
@@ -237,7 +238,7 @@ export const askTheBook = createServerFn({ method: "POST" })
       casual: "Respond like a thoughtful friend who loves this book. Warm, plainspoken.",
       socratic: "Respond by asking the reader sharper questions back. Help them discover.",
     };
-    const toneInstr = toneMap[data.tone];
+    const toneInstr = toneMap[data.tone as keyof typeof toneMap];
 
     const groundingMsg = ch.error
       ? `(Full text unavailable. Answer from general knowledge of "${book.title}" by ${book.author}.)`
@@ -361,7 +362,7 @@ export const generateChapterImage = createServerFn({ method: "POST" })
       watercolor: "delicate watercolor etching, ivory paper, sepia and dusty rose washes, fine line work",
       woodcut: "intricate woodcut print, high contrast black and cream, art-nouveau border ornaments",
     };
-    const styleDesc = styleMap[data.style];
+    const styleDesc = styleMap[data.style as keyof typeof styleMap];
 
     const prompt = `An evocative ${styleDesc} depicting ${sceneHint}. No text or letters in the image. Atmospheric, literary, contemplative. Single composition.`;
 
