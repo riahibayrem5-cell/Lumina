@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth, sendSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { CATALOG } from "@/lib/catalog";
 
 export interface BookRecord {
