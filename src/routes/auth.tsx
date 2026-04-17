@@ -62,7 +62,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back.");
-        navigate({ to: "/" });
+        // session effect will redirect to search.redirect
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
