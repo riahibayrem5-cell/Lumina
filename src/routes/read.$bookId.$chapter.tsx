@@ -156,9 +156,15 @@ function ReaderPage() {
         totalChapters,
         status: "reading",
       });
+      // Push to DB if signed in (best-effort, fire-and-forget)
+      if (session) {
+        upsertProgress({
+          data: { slug: bookId, chapter, scrollRatio: ratio, status: "reading" },
+        }).catch(() => {});
+      }
     }, 5000);
     return () => clearInterval(interval);
-  }, [text, bookId, chapter, totalChapters, setProgress]);
+  }, [text, bookId, chapter, totalChapters, setProgress, session]);
 
   // Sentence selection handler
   const onMouseUp = useCallback(() => {
