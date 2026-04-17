@@ -75,6 +75,16 @@ export function SearchCommand() {
 
   const openResult = async (r: SearchResult) => {
     if (resolving) return;
+    if (!session) {
+      // Send the user to /auth and bring them back to the search target after sign-in
+      const target =
+        r.source === "gutenberg" || r.source === "curated"
+          ? `/read/${r.slug}/0`
+          : `/book/${r.slug}`;
+      setOpen(false);
+      navigate({ to: "/auth", search: { redirect: target } });
+      return;
+    }
     setResolving(r.slug);
     try {
       const res = await getOrCreateBook({
@@ -93,7 +103,6 @@ export function SearchCommand() {
         return;
       }
       setOpen(false);
-      // If we have full text, jump straight into the reader; else go to detail page
       if (res.book.source === "gutenberg" && res.book.gutenberg_id) {
         navigate({
           to: "/read/$bookId/$chapter",
