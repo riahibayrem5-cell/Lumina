@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BookSlugRouteImport } from './routes/book.$slug'
 import { Route as ReadBookIdChapterRouteImport } from './routes/read.$bookId.$chapter'
 
 const LibraryRoute = LibraryRouteImport.update({
@@ -29,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookSlugRoute = BookSlugRouteImport.update({
+  id: '/book/$slug',
+  path: '/book/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReadBookIdChapterRoute = ReadBookIdChapterRouteImport.update({
   id: '/read/$bookId/$chapter',
   path: '/read/$bookId/$chapter',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/library': typeof LibraryRoute
+  '/book/$slug': typeof BookSlugRoute
   '/read/$bookId/$chapter': typeof ReadBookIdChapterRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/library': typeof LibraryRoute
+  '/book/$slug': typeof BookSlugRoute
   '/read/$bookId/$chapter': typeof ReadBookIdChapterRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,33 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/library': typeof LibraryRoute
+  '/book/$slug': typeof BookSlugRoute
   '/read/$bookId/$chapter': typeof ReadBookIdChapterRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/library' | '/read/$bookId/$chapter'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/library'
+    | '/book/$slug'
+    | '/read/$bookId/$chapter'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/library' | '/read/$bookId/$chapter'
-  id: '__root__' | '/' | '/auth' | '/library' | '/read/$bookId/$chapter'
+  to: '/' | '/auth' | '/library' | '/book/$slug' | '/read/$bookId/$chapter'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/library'
+    | '/book/$slug'
+    | '/read/$bookId/$chapter'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   LibraryRoute: typeof LibraryRoute
+  BookSlugRoute: typeof BookSlugRoute
   ReadBookIdChapterRoute: typeof ReadBookIdChapterRoute
 }
 
@@ -92,6 +113,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/book/$slug': {
+      id: '/book/$slug'
+      path: '/book/$slug'
+      fullPath: '/book/$slug'
+      preLoaderRoute: typeof BookSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/read/$bookId/$chapter': {
       id: '/read/$bookId/$chapter'
       path: '/read/$bookId/$chapter'
@@ -106,8 +134,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   LibraryRoute: LibraryRoute,
+  BookSlugRoute: BookSlugRoute,
   ReadBookIdChapterRoute: ReadBookIdChapterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
