@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { CATALOG } from "@/lib/catalog";
 
 // In-memory cache (per Worker instance). Keyed by gutenberg_id.
 const textCache = new Map<string, string[]>();
@@ -79,10 +80,60 @@ async function fetchGutenbergRaw(gutenbergId: string): Promise<string | null> {
   return null;
 }
 
+async function ensureCuratedBookRow(slug: string): Promise<string | null> {
+  // Bootstraps a curated catalog book into public.books if it isn't there yet.
+  // Uses the admin client so direct-link visits to /read/$slug/0 work even
+  // when the user hasn't gone through search first. Curated entries are
+  // hand-vetted public-domain literature, so seeding them is safe.
+  const curated = CATALOG.find((c) => c.id === slug);
+  if (!curated) return null;
+  const cover = curated.coverIsbn
+    ? `https://covers.openlibrary.org/b/isbn/${curated.coverIsbn}-L.jpg`
+    : `https://covers.openlibrary.org/b/title/${encodeURIComponent(curated.title)}-L.jpg`;
+  const ins = await supabaseAdmin
+    .from("books")
+    .upsert(
+      {
+        slug: curated.id,
+        title: curated.title,
+        author: curated.author,
+        year: curated.year,
+        era: curated.era,
+        description: curated.hook,
+        cover_url: cover,
+        gutenberg_id: String(curated.gutenbergId),
+        source: "gutenberg",
+      },
+      { onConflict: "slug" },
+    )
+    .select("gutenberg_id")
+    .maybeSingle();
+  if (ins.error || !ins.data) return null;
+  return ins.data.gutenberg_id ?? String(curated.gutenbergId);
+}
+
 async function loadChaptersForSlug(slug: string): Promise<{ chapters: string[]; gutenbergId: string | null; error: string | null }> {
-  const r = await supabaseAdmin.from("books").select("gutenberg_id,total_chapters").eq("slug", slug).maybeSingle();
-  if (r.error || !r.data) return { chapters: [], gutenbergId: null, error: "Book not found" };
-  const gid = r.data.gutenberg_id;
+  let row = await supabaseAdmin
+    .from("books")
+    .select("gutenberg_id,total_chapters")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (row.error || !row.data) {
+    // Auto-bootstrap from the curated catalog so direct links work
+    const seededGid = await ensureCuratedBookRow(slug);
+    if (!seededGid) {
+      return { chapters: [], gutenbergId: null, error: "Book not found" };
+    }
+    row = await supabaseAdmin
+      .from("books")
+      .select("gutenberg_id,total_chapters")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (row.error || !row.data) {
+      return { chapters: [], gutenbergId: null, error: "Book not found" };
+    }
+  }
+  const gid = row.data.gutenberg_id;
   if (!gid) return { chapters: [], gutenbergId: null, error: "This book has no free full-text source available." };
   if (textCache.has(gid)) return { chapters: textCache.get(gid)!, gutenbergId: gid, error: null };
   const raw = await fetchGutenbergRaw(gid);
