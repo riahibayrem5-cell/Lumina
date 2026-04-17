@@ -85,8 +85,7 @@ function AuthPage() {
         return;
       }
       if (result.redirected) return;
-      // Tokens were set directly
-      navigate({ to: "/" });
+      // Tokens were set directly — session effect will handle redirect.
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
       setOauthLoading(false);
