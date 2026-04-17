@@ -12,6 +12,7 @@ import {
 import { CATALOG } from "@/lib/catalog";
 import { Search, BookOpen, Loader2, Sparkles } from "lucide-react";
 import { searchBooks, getOrCreateBook, type SearchResult } from "@/server/books";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 export function SearchCommand() {
