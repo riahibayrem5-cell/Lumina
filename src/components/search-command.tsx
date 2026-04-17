@@ -23,6 +23,7 @@ export function SearchCommand() {
   const [searching, setSearching] = useState(false);
   const [resolving, setResolving] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { session } = useAuth();
 
   // Cmd+K binding
   useEffect(() => {
