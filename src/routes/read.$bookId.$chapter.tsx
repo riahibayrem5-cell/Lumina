@@ -92,8 +92,8 @@ function ReaderPage() {
     setError(null);
     setText("");
     Promise.all([
-      getChapterText({ data: { bookId, chapter } }),
-      getBookChapters({ data: { bookId } }),
+      getChapterText({ data: { slug: bookId, chapter } }),
+      getBookChapters({ data: { slug: bookId } }),
     ])
       .then(([chRes, allRes]) => {
         if (!active) return;

@@ -20,7 +20,7 @@ export function HighlightTooltip({ bookId, chapter, sentence, position, onClose 
   const analyze = async () => {
     setLoading(true);
     try {
-      const res = await analyzeHighlight({ data: { bookId, chapter, sentence } });
+      const res = await analyzeHighlight({ data: { slug: bookId, chapter, sentence } });
       setAnalysis(res.error ? `(${res.error})` : res.content);
     } catch (e) {
       setAnalysis(e instanceof Error ? e.message : "Failed");

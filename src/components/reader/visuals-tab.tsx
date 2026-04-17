@@ -25,7 +25,7 @@ export function VisualsTab({ bookId, chapter }: { bookId: string; chapter: numbe
     setError(null);
     setImageUrl("");
     try {
-      const res = await generateChapterImage({ data: { bookId, chapter, style: s } });
+      const res = await generateChapterImage({ data: { slug: bookId, chapter, style: s } });
       if (res.error) setError(res.error);
       else {
         setImageUrl(res.imageUrl);

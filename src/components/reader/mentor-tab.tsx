@@ -14,7 +14,7 @@ export function MentorTab({ bookId, chapter }: { bookId: string; chapter: number
     setLoading(true);
     setError(null);
     try {
-      const res = await generateMentorGuide({ data: { bookId, chapter } });
+      const res = await generateMentorGuide({ data: { slug: bookId, chapter } });
       if (res.error) setError(res.error);
       else setContent(res.content);
     } catch (e) {
