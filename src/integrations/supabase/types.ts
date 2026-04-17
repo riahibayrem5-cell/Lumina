@@ -14,7 +14,248 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_cache: {
+        Row: {
+          book_id: string
+          chapter: number
+          created_at: string
+          id: string
+          image_url: string | null
+          kind: string
+          payload: Json | null
+          style: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          chapter?: number
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          kind: string
+          payload?: Json | null
+          style?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          chapter?: number
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          kind?: string
+          payload?: Json | null
+          style?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_cache_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      books: {
+        Row: {
+          author: string
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          era: string | null
+          gutenberg_id: string | null
+          id: string
+          open_library_id: string | null
+          slug: string
+          source: string
+          title: string
+          total_chapters: number | null
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          author: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          era?: string | null
+          gutenberg_id?: string | null
+          id?: string
+          open_library_id?: string | null
+          slug: string
+          source?: string
+          title: string
+          total_chapters?: number | null
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          author?: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          era?: string | null
+          gutenberg_id?: string | null
+          id?: string
+          open_library_id?: string | null
+          slug?: string
+          source?: string
+          title?: string
+          total_chapters?: number | null
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          book_id: string
+          chapter: number
+          content: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          chapter?: number
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          chapter?: number
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      highlights: {
+        Row: {
+          book_id: string
+          chapter: number
+          created_at: string
+          id: string
+          note: string | null
+          text: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          chapter: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          text: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          chapter?: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          text?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "highlights_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_library: {
+        Row: {
+          book_id: string
+          current_chapter: number
+          id: string
+          scroll_ratio: number
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          current_chapter?: number
+          id?: string
+          scroll_ratio?: number
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          current_chapter?: number
+          id?: string
+          scroll_ratio?: number
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_library_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
