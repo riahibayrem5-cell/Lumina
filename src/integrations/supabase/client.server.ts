@@ -8,23 +8,14 @@ import type { Database } from './types';
 function createSupabaseAdminClient() {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  // Dev-environment fallback: the service role key isn't injected into the local
-  // sandbox, so fall back to the publishable key (RLS still applies). In production
-  // the service role key is present and bypasses RLS as intended.
-  const FALLBACK_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
-  const key = SUPABASE_SERVICE_ROLE_KEY || FALLBACK_KEY;
 
-  if (!SUPABASE_URL || !key) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error(
       'Missing Supabase server environment variables. Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.'
     );
   }
 
-  if (!SUPABASE_SERVICE_ROLE_KEY) {
-    console.warn('[supabaseAdmin] SUPABASE_SERVICE_ROLE_KEY missing — falling back to publishable key (RLS enforced).');
-  }
-
-  return createClient<Database>(SUPABASE_URL, key, {
+  return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: {
       storage: undefined,
       persistSession: false,
