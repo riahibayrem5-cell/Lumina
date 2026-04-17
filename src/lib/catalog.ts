@@ -1,11 +1,17 @@
-// Curated public-domain classics. `gutenbergId` is used to fetch text on demand.
-// Cover art is fetched from Open Library; AI fallback handled by reader.
+// Curated public-domain classics shown by default and used as fast-path search results.
+// All AI features now operate on slugs stored in the `books` table; this is bootstrap data.
 
 export type BookEra = "Romantic" | "Victorian" | "Gothic" | "Edwardian" | "Modernist";
-export type BookMood = "Melancholic" | "Triumphant" | "Contemplative" | "Mysterious" | "Romantic" | "Adventurous";
+export type BookMood =
+  | "Melancholic"
+  | "Triumphant"
+  | "Contemplative"
+  | "Mysterious"
+  | "Romantic"
+  | "Adventurous";
 
 export interface Book {
-  id: string;
+  id: string; // slug
   title: string;
   author: string;
   year: number;
@@ -163,6 +169,5 @@ export function coverUrl(book: Book): string {
   if (book.coverIsbn) {
     return `https://covers.openlibrary.org/b/isbn/${book.coverIsbn}-L.jpg`;
   }
-  // Fallback: Open Library by Gutenberg-related search isn't reliable; use title search
   return `https://covers.openlibrary.org/b/title/${encodeURIComponent(book.title)}-L.jpg`;
 }

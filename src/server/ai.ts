@@ -68,20 +68,18 @@ async function writeCache(
   payload: Record<string, unknown>,
   imageUrl: string | null = null,
 ) {
-  await supabaseAdmin
-    .from("ai_cache")
-    .upsert(
-      {
-        user_id: key.userId,
-        book_id: key.bookId,
-        chapter: key.chapter,
-        kind: key.kind,
-        style: key.style ?? "",
-        payload,
-        image_url: imageUrl,
-      },
-      { onConflict: "user_id,book_id,chapter,kind,style" },
-    );
+  await supabaseAdmin.from("ai_cache").upsert(
+    {
+      user_id: key.userId,
+      book_id: key.bookId,
+      chapter: key.chapter,
+      kind: key.kind,
+      style: key.style ?? "",
+      payload,
+      image_url: imageUrl,
+    } as never,
+    { onConflict: "user_id,book_id,chapter,kind,style" },
+  );
 }
 
 // === SUMMARY ===
