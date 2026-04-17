@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Loader2, Bookmark } from "lucide-react";
 import { analyzeHighlight } from "@/server/ai";
+import { addHighlight as addHighlightFn } from "@/server/library";
 import { useReadingStore } from "@/store/reading";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 interface Props {
@@ -16,6 +18,7 @@ export function HighlightTooltip({ bookId, chapter, sentence, position, onClose 
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
   const addHighlight = useReadingStore((s) => s.addHighlight);
+  const { session } = useAuth();
 
   const analyze = async () => {
     setLoading(true);
@@ -37,6 +40,9 @@ export function HighlightTooltip({ bookId, chapter, sentence, position, onClose 
       text: sentence,
       createdAt: Date.now(),
     });
+    if (session) {
+      addHighlightFn({ data: { slug: bookId, chapter, text: sentence } }).catch(() => {});
+    }
     toast.success("Highlight saved");
     onClose();
   };
