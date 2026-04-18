@@ -1,9 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { sendSupabaseAuth } from "@/integrations/supabase/auth-helpers";
 import { CATALOG } from "@/lib/catalog";
+
+// Lazy anon client for public reads from server context (books are publicly readable via RLS).
+let _publicDb: ReturnType<typeof createClient<Database>> | null = null;
+function publicDb() {
+  if (_publicDb) return _publicDb;
+  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error("Supabase URL or publishable key missing");
+  _publicDb = createClient<Database>(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return _publicDb;
+}
 
 export interface BookRecord {
   id: string;
@@ -231,17 +245,7 @@ export const getOrCreateBook = createServerFn({ method: "POST" })
 export const getBookBySlug = createServerFn({ method: "GET" })
   .inputValidator(z.object({ slug: z.string().min(1).max(120) }))
   .handler(async ({ data }) => {
-    const r = await supabaseAdmin.from("books").select("*").eq("slug", data.slug).maybeSingle();
+    const r = await publicDb().from("books").select("*").eq("slug", data.slug).maybeSingle();
     if (r.error) return { book: null, error: r.error.message };
     return { book: (r.data as unknown as BookRecord) ?? null, error: null };
-  });
-
-export const updateBookChapterCount = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ slug: z.string().min(1).max(120), totalChapters: z.number().int().min(1).max(2000) }))
-  .handler(async ({ data }) => {
-    await supabaseAdmin
-      .from("books")
-      .update({ total_chapters: data.totalChapters })
-      .eq("slug", data.slug);
-    return { ok: true };
   });
