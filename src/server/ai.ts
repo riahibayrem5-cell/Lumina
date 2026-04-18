@@ -1,9 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getChapterText } from "./gutenberg";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import { loadChaptersWithDb } from "./gutenberg";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { sendSupabaseAuth } from "@/integrations/supabase/auth-helpers";
+
+type Db = SupabaseClient<Database>;
 
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const TEXT_MODEL = "google/gemini-3-flash-preview";
@@ -38,9 +41,20 @@ async function callAI(body: Record<string, unknown>) {
   return res.json();
 }
 
-async function getBookBySlug(slug: string) {
-  const r = await supabaseAdmin.from("books").select("*").eq("slug", slug).maybeSingle();
+async function getBookBySlug(db: Db, slug: string) {
+  const r = await db.from("books").select("*").eq("slug", slug).maybeSingle();
   return r.data;
+}
+
+async function getChapter(db: Db, slug: string, chapter: number) {
+  const r = await loadChaptersWithDb(db, slug);
+  if (r.error) return { text: "", title: "", error: r.error };
+  if (chapter >= r.chapters.length) return { text: "", title: "", error: "Chapter out of range" };
+  const full = r.chapters[chapter];
+  const nl = full.indexOf("\n");
+  const title = nl > 0 ? full.slice(0, nl).trim() : `Chapter ${chapter + 1}`;
+  const text = nl > 0 ? full.slice(nl).trim() : full;
+  return { text, title, error: null as string | null };
 }
 
 interface CacheKey {
@@ -51,8 +65,8 @@ interface CacheKey {
   style?: string;
 }
 
-async function readCache({ userId, bookId, chapter, kind, style = "" }: CacheKey) {
-  const r = await supabaseAdmin
+async function readCache(db: Db, { userId, bookId, chapter, kind, style = "" }: CacheKey) {
+  const r = await db
     .from("ai_cache")
     .select("*")
     .eq("user_id", userId)
@@ -65,11 +79,12 @@ async function readCache({ userId, bookId, chapter, kind, style = "" }: CacheKey
 }
 
 async function writeCache(
+  db: Db,
   key: CacheKey,
   payload: Record<string, unknown>,
   imageUrl: string | null = null,
 ) {
-  await supabaseAdmin.from("ai_cache").upsert(
+  await db.from("ai_cache").upsert(
     {
       user_id: key.userId,
       book_id: key.bookId,
@@ -94,18 +109,19 @@ export const generateChapterSummary = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    const book = await getBookBySlug(data.slug);
+    const db = context.supabase as Db;
+    const book = await getBookBySlug(db, data.slug);
     if (!book) return { content: "", error: "Book not found" };
 
     const cacheKey = { userId: context.userId, bookId: book.id, chapter: data.chapter, kind: "summary" };
     if (!data.force) {
-      const cached = await readCache(cacheKey);
+      const cached = await readCache(db, cacheKey);
       if (cached?.payload && typeof (cached.payload as { content?: string }).content === "string") {
         return { content: (cached.payload as { content: string }).content, error: null, cached: true };
       }
     }
 
-    const ch = await getChapterText({ data: { slug: data.slug, chapter: data.chapter } });
+    const ch = await getChapter(db, data.slug, data.chapter);
     if (ch.error || !ch.text) return { content: "", error: ch.error ?? "No text" };
 
     try {
@@ -139,7 +155,7 @@ ${chapterContext(ch.text)}`,
         ],
       });
       const content = result.choices?.[0]?.message?.content ?? "";
-      if (content) await writeCache(cacheKey, { content });
+      if (content) await writeCache(db, cacheKey, { content });
       return { content, error: null };
     } catch (e) {
       return { content: "", error: e instanceof Error ? e.message : "AI failed" };
@@ -157,19 +173,19 @@ export const generateMentorGuide = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    const book = await getBookBySlug(data.slug);
+    const db = context.supabase as Db;
+    const book = await getBookBySlug(db, data.slug);
     if (!book) return { content: "", error: "Book not found" };
 
     const cacheKey = { userId: context.userId, bookId: book.id, chapter: data.chapter, kind: "mentor" };
     if (!data.force) {
-      const cached = await readCache(cacheKey);
+      const cached = await readCache(db, cacheKey);
       if (cached?.payload && typeof (cached.payload as { content?: string }).content === "string") {
         return { content: (cached.payload as { content: string }).content, error: null, cached: true };
       }
     }
 
-    const ch = await getChapterText({ data: { slug: data.slug, chapter: data.chapter } });
-    // Mentor can work even if chapter text is unavailable (metadata-only books)
+    const ch = await getChapter(db, data.slug, data.chapter);
     const ctxStr = ch.error
       ? `(Full text unavailable; reason: ${ch.error}. Write from general knowledge of the book.)`
       : chapterContext(ch.text, 6000);
@@ -202,7 +218,7 @@ ${ctxStr}`,
         ],
       });
       const content = result.choices?.[0]?.message?.content ?? "";
-      if (content) await writeCache(cacheKey, { content });
+      if (content) await writeCache(db, cacheKey, { content });
       return { content, error: null };
     } catch (e) {
       return { content: "", error: e instanceof Error ? e.message : "AI failed" };
@@ -229,9 +245,10 @@ export const askTheBook = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    const book = await getBookBySlug(data.slug);
+    const db = context.supabase as Db;
+    const book = await getBookBySlug(db, data.slug);
     if (!book) return { reply: "", error: "Book not found" };
-    const ch = await getChapterText({ data: { slug: data.slug, chapter: data.chapter } });
+    const ch = await getChapter(db, data.slug, data.chapter);
 
     const toneMap: Record<"scholarly" | "casual" | "socratic", string> = {
       scholarly: "Respond with the precision of a literary critic. Cite specific lines when relevant.",
@@ -258,10 +275,9 @@ export const askTheBook = createServerFn({ method: "POST" })
       });
       const reply = result.choices?.[0]?.message?.content ?? "";
 
-      // Persist last user message + assistant reply to chat_messages
       const lastUser = [...data.messages].reverse().find((m) => m.role === "user");
       if (lastUser) {
-        await supabaseAdmin.from("chat_messages").insert([
+        await db.from("chat_messages").insert([
           { user_id: context.userId, book_id: book.id, chapter: data.chapter, role: "user", content: lastUser.content },
           { user_id: context.userId, book_id: book.id, chapter: data.chapter, role: "assistant", content: reply },
         ]);
@@ -276,9 +292,10 @@ export const getChatHistory = createServerFn({ method: "POST" })
   .middleware([sendSupabaseAuth, requireSupabaseAuth])
   .inputValidator(z.object({ slug: z.string().min(1).max(120), chapter: z.number().int().min(0).max(2000) }))
   .handler(async ({ data, context }) => {
-    const book = await getBookBySlug(data.slug);
+    const db = context.supabase as Db;
+    const book = await getBookBySlug(db, data.slug);
     if (!book) return { messages: [] as { role: "user" | "assistant"; content: string }[], error: null };
-    const r = await supabaseAdmin
+    const r = await db
       .from("chat_messages")
       .select("role,content,created_at")
       .eq("user_id", context.userId)
@@ -303,8 +320,9 @@ export const analyzeHighlight = createServerFn({ method: "POST" })
       sentence: z.string().min(2).max(2000),
     }),
   )
-  .handler(async ({ data }) => {
-    const book = await getBookBySlug(data.slug);
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as Db;
+    const book = await getBookBySlug(db, data.slug);
     if (!book) return { content: "", error: "Book not found" };
     try {
       const result = await callAI({
@@ -335,12 +353,13 @@ export const generateChapterImage = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    const book = await getBookBySlug(data.slug);
+    const db = context.supabase as Db;
+    const book = await getBookBySlug(db, data.slug);
     if (!book) return { imageUrl: "", prompt: "", error: "Book not found" };
 
     const cacheKey = { userId: context.userId, bookId: book.id, chapter: data.chapter, kind: "visual", style: data.style };
     if (!data.force) {
-      const cached = await readCache(cacheKey);
+      const cached = await readCache(db, cacheKey);
       if (cached?.image_url) {
         return {
           imageUrl: cached.image_url,
@@ -351,7 +370,7 @@ export const generateChapterImage = createServerFn({ method: "POST" })
       }
     }
 
-    const ch = await getChapterText({ data: { slug: data.slug, chapter: data.chapter } });
+    const ch = await getChapter(db, data.slug, data.chapter);
     const sceneHint = ch.error
       ? `general atmosphere of "${book.title}" by ${book.author}`
       : `a key scene from "${ch.title}" of "${book.title}" by ${book.author}`;
@@ -373,7 +392,7 @@ export const generateChapterImage = createServerFn({ method: "POST" })
         messages: [{ role: "user", content: prompt }],
       });
       const img = result.choices?.[0]?.message?.images?.[0]?.image_url?.url ?? "";
-      if (img) await writeCache(cacheKey, { prompt }, img);
+      if (img) await writeCache(db, cacheKey, { prompt }, img);
       return { imageUrl: img, prompt, error: img ? null : "No image returned" };
     } catch (e) {
       return { imageUrl: "", prompt, error: e instanceof Error ? e.message : "AI failed" };
