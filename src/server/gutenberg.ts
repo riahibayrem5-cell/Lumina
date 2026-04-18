@@ -1,10 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sendSupabaseAuth } from "@/integrations/supabase/auth-helpers";
 import { CATALOG } from "@/lib/catalog";
 
 // In-memory cache (per Worker instance). Keyed by gutenberg_id.
 const textCache = new Map<string, string[]>();
+
+type Db = SupabaseClient<Database>;
 
 function cleanGutenbergText(raw: string): string {
   const startMatchers = [
@@ -80,55 +85,53 @@ async function fetchGutenbergRaw(gutenbergId: string): Promise<string | null> {
   return null;
 }
 
-async function ensureCuratedBookRow(slug: string): Promise<string | null> {
-  // Bootstraps a curated catalog book into public.books if it isn't there yet.
-  // Uses the admin client so direct-link visits to /read/$slug/0 work even
-  // when the user hasn't gone through search first. Curated entries are
-  // hand-vetted public-domain literature, so seeding them is safe.
+// Bootstraps a curated catalog book into public.books if it isn't there yet.
+// Uses the user-authenticated client; RLS allows any authenticated user to insert.
+async function ensureCuratedBookRow(db: Db, slug: string): Promise<string | null> {
   const curated = CATALOG.find((c) => c.id === slug);
   if (!curated) return null;
   const cover = curated.coverIsbn
     ? `https://covers.openlibrary.org/b/isbn/${curated.coverIsbn}-L.jpg`
     : `https://covers.openlibrary.org/b/title/${encodeURIComponent(curated.title)}-L.jpg`;
-  const ins = await supabaseAdmin
+
+  // RLS doesn't allow UPDATE on books, so do an insert-if-missing instead of upsert.
+  const existing = await db.from("books").select("gutenberg_id").eq("slug", slug).maybeSingle();
+  if (existing.data) return existing.data.gutenberg_id ?? String(curated.gutenbergId);
+
+  const ins = await db
     .from("books")
-    .upsert(
-      {
-        slug: curated.id,
-        title: curated.title,
-        author: curated.author,
-        year: curated.year,
-        era: curated.era,
-        description: curated.hook,
-        cover_url: cover,
-        gutenberg_id: String(curated.gutenbergId),
-        source: "gutenberg",
-      },
-      { onConflict: "slug" },
-    )
+    .insert({
+      slug: curated.id,
+      title: curated.title,
+      author: curated.author,
+      year: curated.year,
+      era: curated.era,
+      description: curated.hook,
+      cover_url: cover,
+      gutenberg_id: String(curated.gutenbergId),
+      source: "gutenberg",
+    })
     .select("gutenberg_id")
     .maybeSingle();
-  if (ins.error || !ins.data) return null;
-  return ins.data.gutenberg_id ?? String(curated.gutenbergId);
+
+  if (ins.data) return ins.data.gutenberg_id ?? String(curated.gutenbergId);
+
+  // Race: another request inserted it. Re-read.
+  const retry = await db.from("books").select("gutenberg_id").eq("slug", slug).maybeSingle();
+  return retry.data?.gutenberg_id ?? String(curated.gutenbergId);
 }
 
-async function loadChaptersForSlug(slug: string): Promise<{ chapters: string[]; gutenbergId: string | null; error: string | null }> {
-  let row = await supabaseAdmin
-    .from("books")
-    .select("gutenberg_id,total_chapters")
-    .eq("slug", slug)
-    .maybeSingle();
+async function loadChaptersForSlug(
+  db: Db,
+  slug: string,
+): Promise<{ chapters: string[]; gutenbergId: string | null; error: string | null }> {
+  let row = await db.from("books").select("gutenberg_id,total_chapters").eq("slug", slug).maybeSingle();
   if (row.error || !row.data) {
-    // Auto-bootstrap from the curated catalog so direct links work
-    const seededGid = await ensureCuratedBookRow(slug);
+    const seededGid = await ensureCuratedBookRow(db, slug);
     if (!seededGid) {
       return { chapters: [], gutenbergId: null, error: "Book not found" };
     }
-    row = await supabaseAdmin
-      .from("books")
-      .select("gutenberg_id,total_chapters")
-      .eq("slug", slug)
-      .maybeSingle();
+    row = await db.from("books").select("gutenberg_id,total_chapters").eq("slug", slug).maybeSingle();
     if (row.error || !row.data) {
       return { chapters: [], gutenbergId: null, error: "Book not found" };
     }
@@ -140,27 +143,27 @@ async function loadChaptersForSlug(slug: string): Promise<{ chapters: string[]; 
   if (!raw) return { chapters: [], gutenbergId: gid, error: "Could not fetch book from Project Gutenberg" };
   const chapters = splitIntoChapters(cleanGutenbergText(raw));
   textCache.set(gid, chapters);
-  // persist chapter count
-  await supabaseAdmin.from("books").update({ total_chapters: chapters.length }).eq("slug", slug);
   return { chapters, gutenbergId: gid, error: null };
 }
 
-export const getBookChapters = createServerFn({ method: "GET" })
+export const getBookChapters = createServerFn({ method: "POST" })
+  .middleware([sendSupabaseAuth, requireSupabaseAuth])
   .inputValidator(z.object({ slug: z.string().min(1).max(120) }))
-  .handler(async ({ data }) => {
-    const r = await loadChaptersForSlug(data.slug);
+  .handler(async ({ data, context }) => {
+    const r = await loadChaptersForSlug(context.supabase as Db, data.slug);
     return { chapters: r.chapters, error: r.error };
   });
 
-export const getChapterText = createServerFn({ method: "GET" })
+export const getChapterText = createServerFn({ method: "POST" })
+  .middleware([sendSupabaseAuth, requireSupabaseAuth])
   .inputValidator(
     z.object({
       slug: z.string().min(1).max(120),
       chapter: z.number().int().min(0).max(2000),
     }),
   )
-  .handler(async ({ data }) => {
-    const r = await loadChaptersForSlug(data.slug);
+  .handler(async ({ data, context }) => {
+    const r = await loadChaptersForSlug(context.supabase as Db, data.slug);
     if (r.error) return { text: "", title: "", total: 0, error: r.error };
     if (data.chapter >= r.chapters.length) {
       return { text: "", title: "", total: r.chapters.length, error: "Chapter out of range" };
@@ -171,3 +174,8 @@ export const getChapterText = createServerFn({ method: "GET" })
     const text = firstNewline > 0 ? full.slice(firstNewline).trim() : full;
     return { text, title, total: r.chapters.length, error: null };
   });
+
+// Internal helper for ai.ts (already inside an authenticated request context).
+export async function loadChaptersWithDb(db: Db, slug: string) {
+  return loadChaptersForSlug(db, slug);
+}
