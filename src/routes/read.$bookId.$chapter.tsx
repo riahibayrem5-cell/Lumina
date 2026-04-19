@@ -29,6 +29,7 @@ import { HighlightTooltip } from "@/components/reader/highlight-tooltip";
 import { useReadingStore } from "@/store/reading";
 import { getBook } from "@/lib/catalog";
 import { getChapterText, getBookChapters } from "@/server/gutenberg";
+import { getBookHeaderInfo } from "@/server/book-meta";
 import { AuthGate } from "@/components/auth-gate";
 import { useAuth } from "@/lib/auth-context";
 import { upsertProgress } from "@/server/library";
