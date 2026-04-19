@@ -29,6 +29,7 @@ import { HighlightTooltip } from "@/components/reader/highlight-tooltip";
 import { useReadingStore } from "@/store/reading";
 import { getBook } from "@/lib/catalog";
 import { getChapterText, getBookChapters } from "@/server/gutenberg";
+import { getBookHeaderInfo } from "@/server/book-meta";
 import { AuthGate } from "@/components/auth-gate";
 import { useAuth } from "@/lib/auth-context";
 import { upsertProgress } from "@/server/library";
@@ -75,7 +76,8 @@ function ReaderPage() {
   const bookId = params.bookId;
   const chapter = parseInt(params.chapter, 10) || 0;
   const navigate = useNavigate();
-  const book = getBook(bookId);
+  const isUpload = bookId.startsWith("upload-");
+  const curatedBook = getBook(bookId);
 
   const [text, setText] = useState("");
   const [chapterTitle, setChapterTitle] = useState("");
@@ -83,6 +85,7 @@ function ReaderPage() {
   const [chaptersList, setChaptersList] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadMeta, setUploadMeta] = useState<{ title: string; author: string } | null>(null);
 
   const settings = useReadingStore((s) => s.settings);
   const setSettings = useReadingStore((s) => s.setSettings);
@@ -96,6 +99,22 @@ function ReaderPage() {
     x: number;
     y: number;
   } | null>(null);
+
+  // For uploads, fetch metadata since it's not in the static catalog
+  useEffect(() => {
+    if (!isUpload) return;
+    let active = true;
+    getBookHeaderInfo({ data: { slug: bookId } }).then((r) => {
+      if (active && r.book) {
+        setUploadMeta({ title: r.book.title, author: r.book.author });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [isUpload, bookId]);
+
+  const book = curatedBook ?? (uploadMeta ? { id: bookId, title: uploadMeta.title, author: uploadMeta.author } : null);
 
   // Fetch chapter text
   useEffect(() => {
@@ -202,6 +221,13 @@ function ReaderPage() {
   );
 
   if (!book) {
+    if (isUpload && !uploadMeta && !error) {
+      return (
+        <div className="grid min-h-screen place-items-center text-walnut">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      );
+    }
     return (
       <div className="grid min-h-screen place-items-center">
         <p className="font-serif italic">Book not found.</p>

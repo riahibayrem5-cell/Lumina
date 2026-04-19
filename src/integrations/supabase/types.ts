@@ -215,6 +215,42 @@ export type Database = {
         }
         Relationships: []
       }
+      title_summaries: {
+        Row: {
+          author: string | null
+          chapter_label: string | null
+          content: string
+          created_at: string
+          id: string
+          mode: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author?: string | null
+          chapter_label?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          mode?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author?: string | null
+          chapter_label?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          mode?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_library: {
         Row: {
           book_id: string
@@ -255,6 +291,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_uploaded_books: {
+        Row: {
+          author: string | null
+          chapters: Json | null
+          created_at: string
+          error_message: string | null
+          file_path: string
+          file_size_bytes: number | null
+          format: string
+          id: string
+          status: string
+          title: string
+          total_chapters: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author?: string | null
+          chapters?: Json | null
+          created_at?: string
+          error_message?: string | null
+          file_path: string
+          file_size_bytes?: number | null
+          format: string
+          id?: string
+          status?: string
+          title: string
+          total_chapters?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author?: string | null
+          chapters?: Json | null
+          created_at?: string
+          error_message?: string | null
+          file_path?: string
+          file_size_bytes?: number | null
+          format?: string
+          id?: string
+          status?: string
+          title?: string
+          total_chapters?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
