@@ -121,10 +121,43 @@ async function ensureCuratedBookRow(db: Db, slug: string): Promise<string | null
   return retry.data?.gutenberg_id ?? String(curated.gutenbergId);
 }
 
+// Returns chapter texts for an uploaded book (slug pattern: "upload-<uuid>")
+async function loadChaptersForUpload(
+  db: Db,
+  uploadId: string,
+): Promise<{ chapters: string[]; gutenbergId: string | null; error: string | null }> {
+  const r = await db
+    .from("user_uploaded_books")
+    .select("status,chapters,error_message")
+    .eq("id", uploadId)
+    .maybeSingle();
+  if (r.error || !r.data) {
+    return { chapters: [], gutenbergId: null, error: "Upload not found" };
+  }
+  if (r.data.status === "parsing") {
+    return { chapters: [], gutenbergId: null, error: "This upload is still being parsed. Please refresh in a moment." };
+  }
+  if (r.data.status === "error") {
+    return { chapters: [], gutenbergId: null, error: r.data.error_message ?? "Failed to parse this upload" };
+  }
+  if (r.data.status !== "ready") {
+    return { chapters: [], gutenbergId: null, error: "Upload not ready" };
+  }
+  const raw = (r.data.chapters as Array<{ title: string; text: string }> | null) ?? [];
+  const chapters = raw.map((c) => `${c.title}\n\n${c.text}`);
+  return { chapters, gutenbergId: null, error: null };
+}
+
 async function loadChaptersForSlug(
   db: Db,
   slug: string,
 ): Promise<{ chapters: string[]; gutenbergId: string | null; error: string | null }> {
+  // Uploaded books use the slug pattern "upload-<uuid>"
+  if (slug.startsWith("upload-")) {
+    const uploadId = slug.slice("upload-".length);
+    return loadChaptersForUpload(db, uploadId);
+  }
+
   let row = await db.from("books").select("gutenberg_id,total_chapters").eq("slug", slug).maybeSingle();
   if (row.error || !row.data) {
     const seededGid = await ensureCuratedBookRow(db, slug);
