@@ -52,9 +52,11 @@ export function detectChapters(fullText: string): DetectedChapter[] {
 
 async function extractPdfText(buf: ArrayBuffer): Promise<string> {
   // Use legacy build to avoid worker requirement in serverless runtime
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const pdfjs = (await import("pdfjs-dist/legacy/build/pdf.mjs")) as unknown as {
+    getDocument: (opts: Record<string, unknown>) => { promise: Promise<unknown> };
+    GlobalWorkerOptions?: { workerSrc: string };
+  };
   // Disable worker — run in main thread
-  // @ts-expect-error - GlobalWorkerOptions exists at runtime
   if (pdfjs.GlobalWorkerOptions) pdfjs.GlobalWorkerOptions.workerSrc = "";
 
   const loadingTask = pdfjs.getDocument({
@@ -64,12 +66,17 @@ async function extractPdfText(buf: ArrayBuffer): Promise<string> {
     useSystemFonts: false,
     disableFontFace: true,
   });
-  const pdf = await loadingTask.promise;
+  const pdf = (await loadingTask.promise) as {
+    numPages: number;
+    getPage: (n: number) => Promise<{
+      getTextContent: () => Promise<{ items: unknown[] }>;
+    }>;
+  };
   const pages: string[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const items = content.items as Array<{ str?: string; hasEOL?: boolean }>;
+    const items = content.items as Array<{ str?: string; hasEOL?: boolean; transform?: number[] }>;
     let pageText = "";
     let lastY: number | null = null;
     for (const item of items) {
