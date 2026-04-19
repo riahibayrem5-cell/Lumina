@@ -287,14 +287,14 @@ function ChapterReviewModal({
     getUploadDetail({ data: { uploadId } }).then((r) => {
       if (!active) return;
       if (r.upload) {
-        const u = r.upload as {
+        const u = r.upload as unknown as {
           title: string;
           author: string | null;
-          chapters: ChapterEditState[];
+          chapters: ChapterEditState[] | null;
         };
         setTitle(u.title);
         setAuthor(u.author ?? "");
-        setChapters(u.chapters ?? []);
+        setChapters(Array.isArray(u.chapters) ? u.chapters : []);
       }
       setLoading(false);
     });
