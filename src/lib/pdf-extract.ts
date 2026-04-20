@@ -11,10 +11,12 @@ interface PdfTextItem {
 let workerConfigured = false;
 
 async function loadPdfjs() {
+  // @ts-expect-error — no bundled types for the .mjs entry
   const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
   if (!workerConfigured) {
-    // Use a worker URL that Vite can resolve at build time.
+    // Vite resolves the ?url import at build time and emits a hashed worker file.
     const workerUrl = (
+      // @ts-expect-error — Vite ?url suffix has no type declaration
       await import("pdfjs-dist/build/pdf.worker.min.mjs?url")
     ).default;
     pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
