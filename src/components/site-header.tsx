@@ -108,7 +108,7 @@ export function SiteHeader() {
               <Button
                 size="sm"
                 variant="default"
-                onClick={() => navigate({ to: "/auth" })}
+                onClick={() => navigate({ to: "/auth", search: { redirect: "/" } })}
                 className="ml-1"
               >
                 <User className="mr-1.5 h-3.5 w-3.5" /> Sign in
