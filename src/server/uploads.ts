@@ -48,54 +48,10 @@ export function detectChapters(fullText: string): DetectedChapter[] {
   return chunks.length > 0 ? chunks : [{ title: "Full text", text }];
 }
 
-// --- PDF extraction (pdfjs-dist legacy build is Worker-compatible) ---
-
-async function extractPdfText(buf: ArrayBuffer): Promise<string> {
-  // Use legacy build to avoid worker requirement in serverless runtime
-  const pdfjs = (await import("pdfjs-dist/legacy/build/pdf.mjs")) as unknown as {
-    getDocument: (opts: Record<string, unknown>) => { promise: Promise<unknown> };
-    GlobalWorkerOptions?: { workerSrc: string };
-  };
-  // Disable worker — run in main thread
-  if (pdfjs.GlobalWorkerOptions) pdfjs.GlobalWorkerOptions.workerSrc = "";
-
-  const loadingTask = pdfjs.getDocument({
-    data: new Uint8Array(buf),
-    useWorkerFetch: false,
-    isEvalSupported: false,
-    useSystemFonts: false,
-    disableFontFace: true,
-  });
-  const pdf = (await loadingTask.promise) as {
-    numPages: number;
-    getPage: (n: number) => Promise<{
-      getTextContent: () => Promise<{ items: unknown[] }>;
-    }>;
-  };
-  const pages: string[] = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const items = content.items as Array<{ str?: string; hasEOL?: boolean; transform?: number[] }>;
-    let pageText = "";
-    let lastY: number | null = null;
-    for (const item of items) {
-      const it = item as { str?: string; transform?: number[]; hasEOL?: boolean };
-      const str = it.str ?? "";
-      const y = it.transform?.[5] ?? null;
-      if (lastY !== null && y !== null && Math.abs(y - lastY) > 2) {
-        pageText += "\n";
-      }
-      pageText += str;
-      if (it.hasEOL) pageText += "\n";
-      lastY = y;
-    }
-    pages.push(pageText);
-  }
-  return pages.join("\n\n");
-}
-
 // --- EPUB extraction (jszip + xml parsing) ---
+// Note: PDF extraction happens in the browser (see src/lib/pdf-extract.ts).
+// pdfjs-dist is not Worker-runtime compatible, so the client extracts text
+// and sends it here for chapter detection.
 
 async function extractEpubText(buf: ArrayBuffer): Promise<{
   text: string;
@@ -212,6 +168,9 @@ const UPLOAD_INPUT = z.object({
   format: z.enum(["pdf", "epub"]),
   fileName: z.string().min(1).max(300),
   fileSize: z.number().int().min(1).max(200 * 1024 * 1024),
+  // For PDFs, the client extracts text and passes it here (pdfjs is browser-only).
+  // EPUBs are parsed server-side via jszip.
+  extractedText: z.string().max(8 * 1024 * 1024).optional(),
 });
 
 export const parseUploadedBook = createServerFn({ method: "POST" })
@@ -246,32 +205,33 @@ export const parseUploadedBook = createServerFn({ method: "POST" })
     const uploadId = insert.data.id;
 
     try {
-      // Download file via signed URL (works regardless of bucket ACLs)
-      const signed = await supabase.storage
-        .from("user-books")
-        .createSignedUrl(data.filePath, 60);
-      if (signed.error || !signed.data?.signedUrl) {
-        throw new Error(signed.error?.message ?? "Could not access file");
-      }
-      const fileRes = await fetch(signed.data.signedUrl);
-      if (!fileRes.ok) throw new Error(`Download failed (${fileRes.status})`);
-      const buf = await fileRes.arrayBuffer();
-
       let chapters: DetectedChapter[] = [];
       let detectedTitle: string | undefined;
       let detectedAuthor: string | undefined;
 
       if (data.format === "pdf") {
-        const text = await extractPdfText(buf);
-        if (text.trim().length < 200) {
-          throw new Error("PDF appears to be empty or image-only (no extractable text)");
+        const text = (data.extractedText ?? "").trim();
+        if (text.length < 200) {
+          throw new Error(
+            "PDF appears to be empty or image-only (no extractable text). Scanned PDFs aren't supported yet.",
+          );
         }
         chapters = detectChapters(text);
       } else {
+        // EPUB — fetch from storage and parse server-side
+        const signed = await supabase.storage
+          .from("user-books")
+          .createSignedUrl(data.filePath, 60);
+        if (signed.error || !signed.data?.signedUrl) {
+          throw new Error(signed.error?.message ?? "Could not access file");
+        }
+        const fileRes = await fetch(signed.data.signedUrl);
+        if (!fileRes.ok) throw new Error(`Download failed (${fileRes.status})`);
+        const buf = await fileRes.arrayBuffer();
+
         const epub = await extractEpubText(buf);
         detectedTitle = epub.title;
         detectedAuthor = epub.author;
-        // Prefer EPUB spine; fall back to text-based detection
         if (epub.spineChapters.length >= 2) {
           chapters = epub.spineChapters;
         } else {
