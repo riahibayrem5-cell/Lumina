@@ -14,6 +14,7 @@ import { getMyLibrary, setBookStatus as setBookStatusFn } from "@/server/library
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UploadsPanel } from "@/components/library/uploads-panel";
 import { TitleSummaryPanel } from "@/components/library/title-summary-panel";
+import { MentorShelfPanel } from "@/components/library/mentor-shelf-panel";
 
 export const Route = createFileRoute("/library")({
   head: () => ({
@@ -93,6 +94,7 @@ function LibraryPage() {
         <Tabs defaultValue="shelf" className="w-full">
           <TabsList className="bg-secondary">
             <TabsTrigger value="shelf">Shelf</TabsTrigger>
+            <TabsTrigger value="mentor">Mentor Library</TabsTrigger>
             <TabsTrigger value="uploads">Uploads</TabsTrigger>
             <TabsTrigger value="title">Summarize by title</TabsTrigger>
           </TabsList>
@@ -107,6 +109,10 @@ function LibraryPage() {
                 {completed.length > 0 && <Shelf title="Completed" entries={completed} onStatus={handleStatus} />}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="mentor" className="mt-8">
+            <MentorShelfPanel />
           </TabsContent>
 
           <TabsContent value="uploads" className="mt-8">

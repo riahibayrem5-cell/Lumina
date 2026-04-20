@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { sendSupabaseAuth } from "@/integrations/supabase/auth-helpers";
+import { cleanChapterTitle } from "@/lib/chapter-title";
 
 // --- Chapter detection helpers (shared between PDF and EPUB) ---
 
