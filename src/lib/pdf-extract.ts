@@ -10,14 +10,25 @@ interface PdfTextItem {
 
 let workerConfigured = false;
 
-async function loadPdfjs() {
-  // @ts-expect-error — no bundled types for the .mjs entry
-  const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
+interface PdfjsModule {
+  getDocument: (opts: { data: Uint8Array }) => {
+    promise: Promise<{
+      numPages: number;
+      getPage: (n: number) => Promise<{
+        getTextContent: () => Promise<{ items: PdfTextItem[] }>;
+      }>;
+    }>;
+  };
+  GlobalWorkerOptions: { workerSrc: string };
+}
+
+async function loadPdfjs(): Promise<PdfjsModule> {
+  const pdfjs = (await import(
+    /* @vite-ignore */ "pdfjs-dist/build/pdf.mjs"
+  )) as unknown as PdfjsModule;
   if (!workerConfigured) {
-    // Vite resolves the ?url import at build time and emits a hashed worker file.
     const workerUrl = (
-      // @ts-expect-error — Vite ?url suffix has no type declaration
-      await import("pdfjs-dist/build/pdf.worker.min.mjs?url")
+      (await import(/* @vite-ignore */ "pdfjs-dist/build/pdf.worker.min.mjs?url")) as { default: string }
     ).default;
     pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
     workerConfigured = true;
