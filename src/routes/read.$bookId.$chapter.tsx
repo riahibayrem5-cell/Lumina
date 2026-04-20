@@ -33,6 +33,7 @@ import { getBookHeaderInfo } from "@/server/book-meta";
 import { AuthGate } from "@/components/auth-gate";
 import { useAuth } from "@/lib/auth-context";
 import { upsertProgress } from "@/server/library";
+import { cleanChapterTitle } from "@/lib/chapter-title";
 
 export const Route = createFileRoute("/read/$bookId/$chapter")({
   head: ({ params }) => {

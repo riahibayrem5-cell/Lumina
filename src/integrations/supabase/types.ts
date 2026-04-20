@@ -188,6 +188,66 @@ export type Database = {
           },
         ]
       }
+      mentor_books: {
+        Row: {
+          author: string
+          chapters: Json
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          era: string | null
+          featured: boolean
+          genres: string[]
+          hook: string | null
+          id: string
+          moods: string[]
+          slug: string
+          sort_order: number
+          title: string
+          total_chapters: number
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          author: string
+          chapters?: Json
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          era?: string | null
+          featured?: boolean
+          genres?: string[]
+          hook?: string | null
+          id?: string
+          moods?: string[]
+          slug: string
+          sort_order?: number
+          title: string
+          total_chapters?: number
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          author?: string
+          chapters?: Json
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          era?: string | null
+          featured?: boolean
+          genres?: string[]
+          hook?: string | null
+          id?: string
+          moods?: string[]
+          slug?: string
+          sort_order?: number
+          title?: string
+          total_chapters?: number
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
