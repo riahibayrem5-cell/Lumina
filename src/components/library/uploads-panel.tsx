@@ -16,6 +16,7 @@ import {
   updateUploadChapters,
   deleteUpload,
 } from "@/server/uploads";
+import { extractPdfTextInBrowser } from "@/lib/pdf-extract";
 
 interface UploadRow {
   id: string;
@@ -114,6 +115,20 @@ function UploadDropzone({ onUploaded }: { onUploaded: () => void }) {
     }
     setBusy(true);
     try {
+      let extractedText: string | undefined;
+
+      if (ext === "pdf") {
+        setProgress("Reading PDF…");
+        extractedText = await extractPdfTextInBrowser(file, (pct) =>
+          setProgress(`Extracting text… ${pct}%`),
+        );
+        if (!extractedText || extractedText.trim().length < 200) {
+          throw new Error(
+            "Couldn't extract text from this PDF. It may be a scanned image — text-based PDFs only for now.",
+          );
+        }
+      }
+
       setProgress("Uploading…");
       const filePath = `${session.user.id}/${crypto.randomUUID()}.${ext}`;
       const up = await supabase.storage.from("user-books").upload(filePath, file, {
@@ -121,13 +136,14 @@ function UploadDropzone({ onUploaded }: { onUploaded: () => void }) {
       });
       if (up.error) throw new Error(up.error.message);
 
-      setProgress("Extracting text & detecting chapters…");
+      setProgress("Detecting chapters…");
       const parsed = await parseUploadedBook({
         data: {
           filePath,
           format: ext as "pdf" | "epub",
           fileName: file.name,
           fileSize: file.size,
+          extractedText,
         },
       });
       if (!parsed.ok) throw new Error(parsed.error ?? "Parsing failed");
