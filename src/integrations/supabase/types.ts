@@ -70,6 +70,7 @@ export type Database = {
           era: string | null
           gutenberg_id: string | null
           id: string
+          last_refreshed_at: string | null
           open_library_id: string | null
           slug: string
           source: string
@@ -86,6 +87,7 @@ export type Database = {
           era?: string | null
           gutenberg_id?: string | null
           id?: string
+          last_refreshed_at?: string | null
           open_library_id?: string | null
           slug: string
           source?: string
@@ -102,6 +104,7 @@ export type Database = {
           era?: string | null
           gutenberg_id?: string | null
           id?: string
+          last_refreshed_at?: string | null
           open_library_id?: string | null
           slug?: string
           source?: string
@@ -109,6 +112,33 @@ export type Database = {
           total_chapters?: number | null
           updated_at?: string
           year?: number | null
+        }
+        Relationships: []
+      }
+      catalog_refresh_log: {
+        Row: {
+          error_message: string | null
+          id: string
+          inserted_count: number
+          ran_at: string
+          skipped_count: number
+          source: string
+        }
+        Insert: {
+          error_message?: string | null
+          id?: string
+          inserted_count?: number
+          ran_at?: string
+          skipped_count?: number
+          source?: string
+        }
+        Update: {
+          error_message?: string | null
+          id?: string
+          inserted_count?: number
+          ran_at?: string
+          skipped_count?: number
+          source?: string
         }
         Relationships: []
       }
@@ -245,6 +275,33 @@ export type Database = {
           total_chapters?: number
           updated_at?: string
           year?: number | null
+        }
+        Relationships: []
+      }
+      mentor_dossier_sections: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          section: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          section: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          section?: string
+          slug?: string
+          updated_at?: string
         }
         Relationships: []
       }
