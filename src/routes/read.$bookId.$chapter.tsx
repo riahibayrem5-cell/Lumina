@@ -95,6 +95,7 @@ function ReaderPage() {
   const { session } = useAuth();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollPct, setScrollPct] = useState(0);
   const [highlight, setHighlight] = useState<{
     text: string;
     x: number;
@@ -166,6 +167,15 @@ function ReaderPage() {
     if (!text) return;
     const el = scrollRef.current;
     if (!el) return;
+    const onScroll = () => {
+      const ratio =
+        el.scrollHeight > el.clientHeight
+          ? el.scrollTop / (el.scrollHeight - el.clientHeight)
+          : 0;
+      setScrollPct(Math.min(1, Math.max(0, ratio)));
+    };
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
     const interval = setInterval(() => {
       const ratio =
         el.scrollHeight > el.clientHeight
@@ -184,7 +194,10 @@ function ReaderPage() {
         }).catch(() => {});
       }
     }, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      clearInterval(interval);
+    };
   }, [text, bookId, chapter, totalChapters, setProgress, session]);
 
   // Sentence selection handler
