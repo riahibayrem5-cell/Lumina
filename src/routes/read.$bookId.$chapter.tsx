@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Type, Settings2, X, AlertCircle, Loader2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -95,6 +95,7 @@ function ReaderPage() {
   const { session } = useAuth();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollPct, setScrollPct] = useState(0);
   const [highlight, setHighlight] = useState<{
     text: string;
     x: number;
@@ -137,11 +138,12 @@ function ReaderPage() {
           setTotalChapters(chRes.total);
         }
         if (!allRes.error) {
-          // derive titles
+          // derive titles, normalized via cleanChapterTitle
           setChaptersList(
             allRes.chapters.map((c, i) => {
               const nl = c.indexOf("\n");
-              return nl > 0 ? c.slice(0, nl).trim() : `Chapter ${i + 1}`;
+              const raw = nl > 0 ? c.slice(0, nl).trim() : "";
+              return cleanChapterTitle(raw, i);
             }),
           );
         }
@@ -165,6 +167,15 @@ function ReaderPage() {
     if (!text) return;
     const el = scrollRef.current;
     if (!el) return;
+    const onScroll = () => {
+      const ratio =
+        el.scrollHeight > el.clientHeight
+          ? el.scrollTop / (el.scrollHeight - el.clientHeight)
+          : 0;
+      setScrollPct(Math.min(1, Math.max(0, ratio)));
+    };
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
     const interval = setInterval(() => {
       const ratio =
         el.scrollHeight > el.clientHeight
@@ -183,7 +194,10 @@ function ReaderPage() {
         }).catch(() => {});
       }
     }, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      clearInterval(interval);
+    };
   }, [text, bookId, chapter, totalChapters, setProgress, session]);
 
   // Sentence selection handler
@@ -312,6 +326,14 @@ function ReaderPage() {
               </div>
             </SheetContent>
           </Sheet>
+        </div>
+        {/* Slim chapter scroll progress bar */}
+        <div className="h-[3px] bg-border/40">
+          <div
+            className="h-full bg-gradient-to-r from-walnut via-mahogany to-gold transition-[width] duration-150 ease-out"
+            style={{ width: `${Math.round(scrollPct * 100)}%` }}
+            aria-hidden
+          />
         </div>
       </div>
 
@@ -446,30 +468,40 @@ function ReadingControls() {
 }
 
 function AICompanion({ bookId, chapter }: { bookId: string; chapter: number }) {
+  const [tab, setTab] = useState("summary");
+  const tabs: Array<{ value: string; label: string }> = [
+    { value: "summary", label: "Summary" },
+    { value: "visuals", label: "Visuals" },
+    { value: "mentor", label: "Mentor" },
+    { value: "chat", label: "Ask" },
+    { value: "audio", label: "Audio" },
+  ];
   return (
-    <Tabs defaultValue="summary" className="w-full">
+    <Tabs value={tab} onValueChange={setTab} className="w-full">
       <TabsList className="grid w-full grid-cols-5 bg-secondary">
-        <TabsTrigger value="summary">Summary</TabsTrigger>
-        <TabsTrigger value="visuals">Visuals</TabsTrigger>
-        <TabsTrigger value="mentor">Mentor</TabsTrigger>
-        <TabsTrigger value="chat">Ask</TabsTrigger>
-        <TabsTrigger value="audio">Audio</TabsTrigger>
+        {tabs.map((t) => (
+          <TabsTrigger key={t.value} value={t.value}>
+            {t.label}
+          </TabsTrigger>
+        ))}
       </TabsList>
-      <TabsContent value="summary" className="mt-6">
-        <SummaryTab bookId={bookId} chapter={chapter} />
-      </TabsContent>
-      <TabsContent value="visuals" className="mt-6">
-        <VisualsTab bookId={bookId} chapter={chapter} />
-      </TabsContent>
-      <TabsContent value="mentor" className="mt-6">
-        <MentorTab bookId={bookId} chapter={chapter} />
-      </TabsContent>
-      <TabsContent value="chat" className="mt-6">
-        <ChatTab bookId={bookId} chapter={chapter} />
-      </TabsContent>
-      <TabsContent value="audio" className="mt-6">
-        <AudioTab />
-      </TabsContent>
+      <div className="relative mt-6">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {tab === "summary" && <SummaryTab bookId={bookId} chapter={chapter} />}
+            {tab === "visuals" && <VisualsTab bookId={bookId} chapter={chapter} />}
+            {tab === "mentor" && <MentorTab bookId={bookId} chapter={chapter} />}
+            {tab === "chat" && <ChatTab bookId={bookId} chapter={chapter} />}
+            {tab === "audio" && <AudioTab />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </Tabs>
   );
 }

@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { BookCard } from "@/components/book-card";
+import { MentorBookCard } from "@/components/mentor-book-card";
 import { SearchCommand, FilterableGrid, useFilteredCatalog } from "@/components/search-command";
 import { CATALOG } from "@/lib/catalog";
-import { ArrowDown } from "lucide-react";
+import { listMentorBooks, type MentorBookRow } from "@/server/mentor-library";
+import { ArrowDown, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -33,6 +35,21 @@ function LandingPage() {
   const [active, setActive] = useState<string>("All");
   const filtered = useFilteredCatalog(active);
   const featured = CATALOG.slice(0, 4);
+  const [mentorPicks, setMentorPicks] = useState<MentorBookRow[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    listMentorBooks()
+      .then((r) => {
+        if (!active || r.error) return;
+        const picks = r.books.filter((b) => b.featured).slice(0, 8);
+        setMentorPicks(picks.length >= 4 ? picks : r.books.slice(0, 8));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -106,7 +123,37 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* EXPLORE */}
+      {/* MENTOR LIBRARY — copyrighted titles, mentor-only */}
+      {mentorPicks.length > 0 && (
+        <section className="border-y border-gold/20 bg-gradient-to-br from-secondary/30 via-card/40 to-background">
+          <div className="mx-auto w-full max-w-7xl px-6 py-20">
+            <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="flex items-center gap-2 font-sans text-xs uppercase tracking-[0.35em] text-walnut">
+                  <Sparkles className="h-3.5 w-3.5 text-gold" /> The Mentor Library
+                </p>
+                <h2 className="mt-2 font-display text-3xl text-obsidian sm:text-4xl">
+                  Modern works, <em className="font-normal italic text-walnut">walked through</em>.
+                </h2>
+                <p className="mt-3 max-w-xl font-serif italic text-espresso/70">
+                  Famous copyrighted titles we cannot host — but a mentor can guide you, chapter by chapter.
+                </p>
+              </div>
+              <Link
+                to="/library"
+                className="inline-flex items-center gap-1.5 rounded-full border border-walnut/70 bg-background/60 px-4 py-2 font-sans text-xs uppercase tracking-[0.2em] text-walnut transition hover:border-gold hover:text-mahogany"
+              >
+                Open the shelf →
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+              {mentorPicks.slice(0, 8).map((b, i) => (
+                <MentorBookCard key={b.id} book={b} index={i} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
       <section id="explore" className="border-t border-border/50 bg-card/40">
         <div className="mx-auto w-full max-w-7xl px-6 py-20">
           <div className="mb-8">

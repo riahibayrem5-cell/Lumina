@@ -5,6 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { sendSupabaseAuth } from "@/integrations/supabase/auth-helpers";
 import { CATALOG } from "@/lib/catalog";
+import { cleanChapterTitle } from "@/lib/chapter-title";
 
 // In-memory cache (per Worker instance). Keyed by gutenberg_id.
 const textCache = new Map<string, string[]>();
@@ -203,7 +204,8 @@ export const getChapterText = createServerFn({ method: "POST" })
     }
     const full = r.chapters[data.chapter];
     const firstNewline = full.indexOf("\n");
-    const title = firstNewline > 0 ? full.slice(0, firstNewline).trim() : `Chapter ${data.chapter + 1}`;
+    const rawTitle = firstNewline > 0 ? full.slice(0, firstNewline).trim() : `Chapter ${data.chapter + 1}`;
+    const title = cleanChapterTitle(rawTitle, data.chapter);
     const text = firstNewline > 0 ? full.slice(firstNewline).trim() : full;
     return { text, title, total: r.chapters.length, error: null };
   });

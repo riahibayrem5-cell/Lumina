@@ -240,10 +240,11 @@ export const parseUploadedBook = createServerFn({ method: "POST" })
         }
       }
 
-      // Cap each chapter to a sensible size (preserves reading; AI calls slice further)
+      // Normalize headings (Roman→Arabic, strip CHAPTER prefix dupes, title-case ALL CAPS)
+      // and cap each chapter to a sensible size (preserves reading; AI calls slice further)
       const MAX_CH = 80000;
-      chapters = chapters.map((c) => ({
-        title: c.title.slice(0, 200),
+      chapters = chapters.map((c, i) => ({
+        title: cleanChapterTitle(c.title, i).slice(0, 200),
         text: c.text.length > MAX_CH ? c.text.slice(0, MAX_CH) + "\n\n[…chapter truncated…]" : c.text,
       }));
 
