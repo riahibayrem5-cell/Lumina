@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { SiteHeader } from "@/components/site-header";
 import { BookCard } from "@/components/book-card";
 import { ProgressRing } from "@/components/progress-ring";
+import { Ornament } from "@/components/ornament";
 import { useReadingStore } from "@/store/reading";
 import { CATALOG, getBook } from "@/lib/catalog";
 import { Button } from "@/components/ui/button";
-import { BookOpen } from "lucide-react";
+import { BookOpen, RefreshCw } from "lucide-react";
 import { AuthGate } from "@/components/auth-gate";
 import { useAuth } from "@/lib/auth-context";
 import { getMyLibrary, setBookStatus as setBookStatusFn } from "@/server/library";
@@ -15,6 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UploadsPanel } from "@/components/library/uploads-panel";
 import { TitleSummaryPanel } from "@/components/library/title-summary-panel";
 import { MentorShelfPanel } from "@/components/library/mentor-shelf-panel";
+import { refreshCatalog, getCatalogStatus } from "@/server/catalog-refresh";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/library")({
   head: () => ({

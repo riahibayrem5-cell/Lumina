@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MentorSlugRouteImport } from './routes/mentor.$slug'
 import { Route as BookSlugRouteImport } from './routes/book.$slug'
 import { Route as ReadBookIdChapterRouteImport } from './routes/read.$bookId.$chapter'
+import { Route as ApiPublicCronRefreshCatalogRouteImport } from './routes/api/public/cron/refresh-catalog'
 
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
@@ -46,6 +47,12 @@ const ReadBookIdChapterRoute = ReadBookIdChapterRouteImport.update({
   path: '/read/$bookId/$chapter',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronRefreshCatalogRoute =
+  ApiPublicCronRefreshCatalogRouteImport.update({
+    id: '/api/public/cron/refresh-catalog',
+    path: '/api/public/cron/refresh-catalog',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByFullPath {
   '/book/$slug': typeof BookSlugRoute
   '/mentor/$slug': typeof MentorSlugRoute
   '/read/$bookId/$chapter': typeof ReadBookIdChapterRoute
+  '/api/public/cron/refresh-catalog': typeof ApiPublicCronRefreshCatalogRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +70,7 @@ export interface FileRoutesByTo {
   '/book/$slug': typeof BookSlugRoute
   '/mentor/$slug': typeof MentorSlugRoute
   '/read/$bookId/$chapter': typeof ReadBookIdChapterRoute
+  '/api/public/cron/refresh-catalog': typeof ApiPublicCronRefreshCatalogRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +80,7 @@ export interface FileRoutesById {
   '/book/$slug': typeof BookSlugRoute
   '/mentor/$slug': typeof MentorSlugRoute
   '/read/$bookId/$chapter': typeof ReadBookIdChapterRoute
+  '/api/public/cron/refresh-catalog': typeof ApiPublicCronRefreshCatalogRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +91,7 @@ export interface FileRouteTypes {
     | '/book/$slug'
     | '/mentor/$slug'
     | '/read/$bookId/$chapter'
+    | '/api/public/cron/refresh-catalog'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +100,7 @@ export interface FileRouteTypes {
     | '/book/$slug'
     | '/mentor/$slug'
     | '/read/$bookId/$chapter'
+    | '/api/public/cron/refresh-catalog'
   id:
     | '__root__'
     | '/'
@@ -97,6 +109,7 @@ export interface FileRouteTypes {
     | '/book/$slug'
     | '/mentor/$slug'
     | '/read/$bookId/$chapter'
+    | '/api/public/cron/refresh-catalog'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,6 +119,7 @@ export interface RootRouteChildren {
   BookSlugRoute: typeof BookSlugRoute
   MentorSlugRoute: typeof MentorSlugRoute
   ReadBookIdChapterRoute: typeof ReadBookIdChapterRoute
+  ApiPublicCronRefreshCatalogRoute: typeof ApiPublicCronRefreshCatalogRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -152,6 +166,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReadBookIdChapterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/refresh-catalog': {
+      id: '/api/public/cron/refresh-catalog'
+      path: '/api/public/cron/refresh-catalog'
+      fullPath: '/api/public/cron/refresh-catalog'
+      preLoaderRoute: typeof ApiPublicCronRefreshCatalogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -162,6 +183,7 @@ const rootRouteChildren: RootRouteChildren = {
   BookSlugRoute: BookSlugRoute,
   MentorSlugRoute: MentorSlugRoute,
   ReadBookIdChapterRoute: ReadBookIdChapterRoute,
+  ApiPublicCronRefreshCatalogRoute: ApiPublicCronRefreshCatalogRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
