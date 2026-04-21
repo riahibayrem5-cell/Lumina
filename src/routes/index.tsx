@@ -35,6 +35,21 @@ function LandingPage() {
   const [active, setActive] = useState<string>("All");
   const filtered = useFilteredCatalog(active);
   const featured = CATALOG.slice(0, 4);
+  const [mentorPicks, setMentorPicks] = useState<MentorBookRow[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    listMentorBooks()
+      .then((r) => {
+        if (!active || r.error) return;
+        const picks = r.books.filter((b) => b.featured).slice(0, 8);
+        setMentorPicks(picks.length >= 4 ? picks : r.books.slice(0, 8));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen">
