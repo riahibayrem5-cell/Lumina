@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { BookCard } from "@/components/book-card";
+import { MentorBookCard } from "@/components/mentor-book-card";
 import { SearchCommand, FilterableGrid, useFilteredCatalog } from "@/components/search-command";
 import { CATALOG } from "@/lib/catalog";
-import { ArrowDown } from "lucide-react";
+import { listMentorBooks, type MentorBookRow } from "@/server/mentor-library";
+import { ArrowDown, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
