@@ -137,11 +137,12 @@ function ReaderPage() {
           setTotalChapters(chRes.total);
         }
         if (!allRes.error) {
-          // derive titles
+          // derive titles, normalized via cleanChapterTitle
           setChaptersList(
             allRes.chapters.map((c, i) => {
               const nl = c.indexOf("\n");
-              return nl > 0 ? c.slice(0, nl).trim() : `Chapter ${i + 1}`;
+              const raw = nl > 0 ? c.slice(0, nl).trim() : "";
+              return cleanChapterTitle(raw, i);
             }),
           );
         }
