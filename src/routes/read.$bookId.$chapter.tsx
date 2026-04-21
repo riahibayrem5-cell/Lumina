@@ -327,6 +327,14 @@ function ReaderPage() {
             </SheetContent>
           </Sheet>
         </div>
+        {/* Slim chapter scroll progress bar */}
+        <div className="h-[3px] bg-border/40">
+          <div
+            className="h-full bg-gradient-to-r from-walnut via-mahogany to-gold transition-[width] duration-150 ease-out"
+            style={{ width: `${Math.round(scrollPct * 100)}%` }}
+            aria-hidden
+          />
+        </div>
       </div>
 
       <div className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-0 px-0 lg:grid-cols-[1fr_28rem]">
@@ -460,30 +468,40 @@ function ReadingControls() {
 }
 
 function AICompanion({ bookId, chapter }: { bookId: string; chapter: number }) {
+  const [tab, setTab] = useState("summary");
+  const tabs: Array<{ value: string; label: string }> = [
+    { value: "summary", label: "Summary" },
+    { value: "visuals", label: "Visuals" },
+    { value: "mentor", label: "Mentor" },
+    { value: "chat", label: "Ask" },
+    { value: "audio", label: "Audio" },
+  ];
   return (
-    <Tabs defaultValue="summary" className="w-full">
+    <Tabs value={tab} onValueChange={setTab} className="w-full">
       <TabsList className="grid w-full grid-cols-5 bg-secondary">
-        <TabsTrigger value="summary">Summary</TabsTrigger>
-        <TabsTrigger value="visuals">Visuals</TabsTrigger>
-        <TabsTrigger value="mentor">Mentor</TabsTrigger>
-        <TabsTrigger value="chat">Ask</TabsTrigger>
-        <TabsTrigger value="audio">Audio</TabsTrigger>
+        {tabs.map((t) => (
+          <TabsTrigger key={t.value} value={t.value}>
+            {t.label}
+          </TabsTrigger>
+        ))}
       </TabsList>
-      <TabsContent value="summary" className="mt-6">
-        <SummaryTab bookId={bookId} chapter={chapter} />
-      </TabsContent>
-      <TabsContent value="visuals" className="mt-6">
-        <VisualsTab bookId={bookId} chapter={chapter} />
-      </TabsContent>
-      <TabsContent value="mentor" className="mt-6">
-        <MentorTab bookId={bookId} chapter={chapter} />
-      </TabsContent>
-      <TabsContent value="chat" className="mt-6">
-        <ChatTab bookId={bookId} chapter={chapter} />
-      </TabsContent>
-      <TabsContent value="audio" className="mt-6">
-        <AudioTab />
-      </TabsContent>
+      <div className="relative mt-6">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {tab === "summary" && <SummaryTab bookId={bookId} chapter={chapter} />}
+            {tab === "visuals" && <VisualsTab bookId={bookId} chapter={chapter} />}
+            {tab === "mentor" && <MentorTab bookId={bookId} chapter={chapter} />}
+            {tab === "chat" && <ChatTab bookId={bookId} chapter={chapter} />}
+            {tab === "audio" && <AudioTab />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </Tabs>
   );
 }
